@@ -1,4 +1,4 @@
-name: Auto Translate
+name: Gemini Auto Translate
 
 on:
   push:
@@ -20,34 +20,39 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install googletrans==4.0.0-rc1
+          pip install google-genai
 
-      - name: Run Translation Script
+      - name: Run Gemini Translation Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python - <<EOF
           import os
-          from googletrans import Translator
+          from google import genai
 
-          translator = Translator()
-          
-          # 예시로 README.md 파일이 있다면 번역 (필요한 파일 형식에 맞게 확장자 수정 가능)
+          client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
           for root, dirs, files in os.walk("."):
-              # .github 폴더 등은 제외
               if ".github" in root:
                   continue
               for file in files:
-                  if file.endswith(".md"):
+                  if file.endswith((".md", ".txt")):
                       filepath = os.path.join(root, file)
                       try:
                           with open(filepath, "r", encoding="utf-8") as f:
-                              text = f.read()
+                              content = f.read()
                           
-                          # 한국어로 번역
-                          result = translator.translate(text, dest='ko')
+                          # Gemini에게 기술 문서 번역 요청
+                          prompt = f"다음은 기술 문서 또는 마크다운 파일 내용이야. 코드 블록, 명령어, 기술 용어는 원본을 유지하면서 자연스러운 한국어로 번역해 줘. 결과물만 출력해 줘:\n\n{content}"
+                          
+                          response = client.models.generate_content(
+                              model='gemini-2.5-flash',
+                              contents=prompt
+                          )
                           
                           with open(filepath, "w", encoding="utf-8") as f:
-                              f.write(result.text)
-                          print(f"Translated: {filepath}")
+                              f.write(response.text)
+                          print(f"Translated with Gemini: {filepath}")
                       except Exception as e:
                           print(f"Skipped {filepath}: {e}")
           EOF
@@ -57,5 +62,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --quiet && git diff --cached --quiet || git commit -m "Auto-translate files to Korean"
+          git diff --quiet && git diff --cached --quiet || git commit -m "Auto-translate files using Gemini"
           git push
