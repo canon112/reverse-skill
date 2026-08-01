@@ -1,0 +1,19 @@
+name: Auto Translate
+
+on:
+  push:
+    branches:
+      - main  # 또는 master
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Translation
+        # 오픈소스 자동 번역 액션 예시 (예: Google Translate 기반 액션)
+        uses: zhaohongxuan/google-translate-action@v1
+        with:
+          target-language: 'ko' # 번역할 목표 언어 (한국어: ko)
