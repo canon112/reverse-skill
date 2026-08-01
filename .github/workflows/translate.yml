@@ -33,11 +33,7 @@ jobs:
           from google import genai
 
           api_key = os.environ.get("GEMINI_API_KEY")
-          if not api_key:
-              raise ValueError("GEMINI_API_KEY가 설정되지 않았습니다!")
-
           client = genai.Client(api_key=api_key)
-          print("Gemini 클라이언트 초기화 성공")
 
           count = 0
           for root, dirs, files in os.walk("."):
@@ -55,22 +51,23 @@ jobs:
                           if not content.strip():
                               continue
 
-                          prompt = f"다음 마크다운/텍스트 문서의 내용을 코드 구조나 명령어는 유지하면서 자연스러운 한국어로 번역해 줘. 결과물만 출력해 줘:\n\n{content}"
+                          prompt = f"다음 문서를 자연스러운 한국어로 번역해 줘. 코드나 명령어, 마크다운 문법은 그대로 유지하고 결과물만 출력해 줘:\n\n{content}"
                           
+                          # 모델 이름을 정상 지원되는 gemini-1.5-flash로 변경
                           response = client.models.generate_content(
-                              model='gemini-2.5-flash',
+                              model='gemini-1.5-flash',
                               contents=prompt
                           )
                           
                           if response and response.text:
                               with open(filepath, "w", encoding="utf-8") as f:
                                   f.write(response.text)
-                              print(f"-> 번역 완료 및 저장: {filepath}")
+                              print(f"-> [성공] 번역 완료: {filepath}")
                               count += 1
                           else:
-                              print(f"-> 번역 실패 (응답 없음): {filepath}")
+                              print(f"-> [실패] 응답 없음: {filepath}")
                       except Exception as e:
-                          print(f"-> 에러 발생 ({filepath}): {e}")
+                          print(f"-> [에러 발생]: {filepath} -> {e}")
 
           print(f"총 {count}개의 파일 번역 완료")
           EOF
