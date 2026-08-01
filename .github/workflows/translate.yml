@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   translate:
@@ -12,7 +13,49 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Translate Markdown
-        uses: crowdin/github-action@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          upload_sources: true
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install googletrans==4.0.0-rc1
+
+      - name: Run Translation Script
+        run: |
+          python - <<EOF
+          import os
+          from googletrans import Translator
+
+          translator = Translator()
+          
+          # 예시로 README.md 파일이 있다면 번역 (필요한 파일 형식에 맞게 확장자 수정 가능)
+          for root, dirs, files in os.walk("."):
+              # .github 폴더 등은 제외
+              if ".github" in root:
+                  continue
+              for file in files:
+                  if file.endswith(".md"):
+                      filepath = os.path.join(root, file)
+                      try:
+                          with open(filepath, "r", encoding="utf-8") as f:
+                              text = f.read()
+                          
+                          # 한국어로 번역
+                          result = translator.translate(text, dest='ko')
+                          
+                          with open(filepath, "w", encoding="utf-8") as f:
+                              f.write(result.text)
+                          print(f"Translated: {filepath}")
+                      except Exception as e:
+                          print(f"Skipped {filepath}: {e}")
+          EOF
+
+      - name: Commit and push translated files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --quiet && git diff --cached --quiet || git commit -m "Auto-translate files to Korean"
+          git push
