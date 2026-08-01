@@ -34,7 +34,6 @@ jobs:
           if not api_key:
               raise ValueError("GEMINI_API_KEY가 설정되지 않았습니다!")
 
-          # API 환경에서 검증된 안정적인 모델 사용
           url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={api_key}"
 
           count = 0
@@ -45,12 +44,13 @@ jobs:
               for file in files:
                   if file.endswith(('.md', '.txt')):
                       filepath = os.path.join(root, file)
-                      print(f"처리 중: {filepath}")
+                      print(f"\n--- 처리 중: {filepath} ---")
                       try:
                           with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                               content = f.read()
                           
                           if not content.strip():
+                              print("-> 내용이 비어있어 건너뜁니다.")
                               continue
 
                           prompt = f"다음 문서를 자연스러운 한국어로 번역해 줘. 코드나 명령어, 마크다운 문법은 그대로 유지하고 결과물만 출력해 줘:\n\n{content}"
@@ -69,23 +69,37 @@ jobs:
                           )
                           
                           with urllib.request.urlopen(req) as response:
-                              res_data = json.loads(response.read().decode("utf-8"))
-                              translated_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+                              res_body = response.read().decode("utf-8")
+                              res_data = json.loads(res_body)
+                              
+                              # 응답 구조 안전하게 추출
+                              candidates = res_data.get("candidates")
+                              if not candidates:
+                                  print(f"-> [실패] candidates가 없습니다. 전체 응답: {res_body}")
+                                  continue
+                              
+                              parts = candidates[0].get("content", {}).get("parts", [])
+                              if not parts:
+                                  print(f"-> [실패] parts가 없습니다. 전체 응답: {res_body}")
+                                  continue
+                              
+                              translated_text = parts[0].get("text")
                               
                               if translated_text:
                                   with open(filepath, "w", encoding="utf-8") as f:
                                       f.write(translated_text)
-                                  print(f"-> [성공] 번역 완료: {filepath}")
+                                  print(f"-> [성공] 번역 및 저장 완료")
                                   count += 1
                               else:
-                                  print(f"-> [실패] 응답 내용 없음: {filepath}")
+                                  print(f"-> [실패] 텍스트 결과가 비어있습니다.")
                                   
                       except urllib.error.HTTPError as e:
-                          print(f"-> [HTTP 에러] {filepath} -> {e.code}: {e.read().decode('utf-8')}")
+                          err_content = e.read().decode('utf-8')
+                          print(f"-> [HTTP 에러 발생] 코드: {e.code}, 내용: {err_content}")
                       except Exception as e:
-                          print(f"-> [에러 발생] {filepath} -> {e}")
+                          print(f"-> [일반 에러 발생]: {e}")
 
-          print(f"총 {count}개의 파일 번역 완료")
+          print(f"\n총 {count}개의 파일 번역 완료")
           EOF
 
       - name: Commit and push translated files
